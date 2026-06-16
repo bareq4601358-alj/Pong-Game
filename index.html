@@ -180,22 +180,12 @@
   }
   .icon-btn:hover { background: rgba(255,255,255,0.12); transform: translateY(-2px); }
   .icon-btn.off { opacity: 0.4; }
+  /* Menu button only appears during a match */
+  .toolbar-menu { display: none; }
+  body.in-game .toolbar-menu { display: grid; }
 
   .winner-trophy { font-size: 60px; filter: drop-shadow(0 0 24px var(--gold)); animation: pop 0.6s ease; }
   @keyframes pop { 0% { transform: scale(0.3); opacity: 0; } 70% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
-
-  /* In-game HUD menu button */
-  .hud-btn {
-    position: absolute; top: 12px; left: 12px; z-index: 4;
-    font-family: 'Rajdhani', sans-serif; font-weight: 700; letter-spacing: 1px;
-    font-size: 13px; text-transform: uppercase; color: #eaf2ff; cursor: pointer;
-    background: rgba(10,14,40,0.55); border: 1px solid var(--glass-border);
-    border-radius: 10px; padding: 9px 15px; backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px); display: none; align-items: center; gap: 6px;
-    transition: background 0.18s ease, transform 0.18s ease; touch-action: manipulation;
-  }
-  .hud-btn:hover { background: rgba(255,255,255,0.16); transform: translateY(-1px); }
-  .court-wrap.in-game .hud-btn { display: inline-flex; }
 
   /* On-screen paddle controls (mobile only) */
   .touch-controls {
@@ -275,9 +265,6 @@
     <div class="court-wrap">
       <canvas id="game" width="900" height="560"></canvas>
 
-      <!-- In-game HUD menu button (desktop + mobile) -->
-      <button class="hud-btn" id="hudMenu" title="Back to menu (Esc)">&#9776; Menu</button>
-
       <!-- On-screen paddle controls (mobile) -->
       <div class="touch-controls" id="touchControls">
         <button id="touchUp" aria-label="Move up">&#9650;</button>
@@ -342,6 +329,7 @@
     </div>
 
     <div class="toolbar">
+      <div class="icon-btn toolbar-menu" id="toMenuBtn" title="Back to menu (Esc)">🏠</div>
       <div class="icon-btn" id="soundBtn" title="Mute / Unmute (M)">🔊</div>
       <div class="icon-btn" id="pauseBtn" title="Pause (Space)">⏸</div>
     </div>
@@ -823,6 +811,7 @@
     draw();
     const inGame = (G.state === 'playing' || G.state === 'paused' || G.state === 'countdown');
     courtWrap.classList.toggle('in-game', inGame);
+    document.body.classList.toggle('in-game', inGame);
     requestAnimationFrame(loop);
   }
   loop();
@@ -860,7 +849,7 @@
   document.getElementById('pauseBtn').addEventListener('click', () => {
     if (G.state === 'playing' || G.state === 'paused') togglePause();
   });
-  document.getElementById('hudMenu').addEventListener('click', goMenu);
+  document.getElementById('toMenuBtn').addEventListener('click', goMenu);
 
   function toggleSound() {
     const muted = Sound.toggle();
