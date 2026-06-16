@@ -204,6 +204,7 @@
   }
   @media (hover: none) and (pointer: coarse) {
     body.in-game .mobile-controls { display: flex; }
+    .controls-hint-desktop { display: none; }
   }
 
   .mobile-controls .pad-btn .icon { width: 28px; height: 28px; }
@@ -304,7 +305,7 @@
       <!-- Start / Menu overlay -->
       <div class="overlay" id="menu">
         <h2>Ready to Play?</h2>
-        <p class="sub">Move your paddle with the <b>mouse</b> or <kbd>↑</kbd><kbd>↓</kbd> / <kbd>W</kbd><kbd>S</kbd>. Beat the CPU to the target score. Each rally gets faster — keep your nerve.</p>
+        <p class="sub"><span class="controls-hint-desktop">Move your paddle with the <b>mouse</b> or <kbd>↑</kbd><kbd>↓</kbd> / <kbd>W</kbd><kbd>S</kbd>. </span>Beat the CPU to the target score. Each rally gets faster — keep your nerve.</p>
 
         <div class="group">
           <div class="group-label">Difficulty</div>
