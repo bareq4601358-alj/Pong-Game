@@ -188,7 +188,7 @@
   }
   .mobile-controls .pad-btn {
     flex: 1; max-width: 250px; height: 62px; border-radius: 16px;
-    font-size: 22px; color: #eaf2ff; cursor: pointer;
+    color: #eaf2ff; cursor: pointer;
     background: var(--glass); border: 1px solid var(--glass-border);
     backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 10px 30px rgba(0,0,0,0.4);
@@ -206,21 +206,37 @@
     body.in-game .mobile-controls { display: flex; }
   }
 
+  .mobile-controls .pad-btn .icon { width: 28px; height: 28px; }
+
   /* Bottom toolbar */
   .toolbar { display: flex; gap: 10px; align-items: center; }
   .icon-btn {
     width: 44px; height: 44px; border-radius: 12px; cursor: pointer;
     background: var(--glass); border: 1px solid var(--glass-border);
-    color: #eaf2ff; display: grid; place-items: center; font-size: 18px;
+    color: #eaf2ff; display: grid; place-items: center;
     transition: all 0.18s ease; backdrop-filter: blur(10px);
   }
+  .icon-btn .icon { width: 20px; height: 20px; }
   .icon-btn:hover { background: rgba(255,255,255,0.12); transform: translateY(-2px); }
   .icon-btn.off { opacity: 0.4; }
   /* Menu button only appears during a match */
   .toolbar-menu { display: none; }
   body.in-game .toolbar-menu { display: grid; }
 
-  .winner-trophy { font-size: 60px; filter: drop-shadow(0 0 24px var(--gold)); animation: pop 0.6s ease; }
+  .winner-trophy {
+    width: 72px; height: 72px; display: grid; place-items: center;
+    filter: drop-shadow(0 0 24px var(--gold)); animation: pop 0.6s ease;
+  }
+  .winner-trophy .icon { width: 72px; height: 72px; stroke: var(--gold); }
+  .winner-trophy.defeat { filter: drop-shadow(0 0 24px rgba(177,75,255,0.55)); }
+  .winner-trophy.defeat .icon { stroke: var(--magenta); }
+
+  /* Shared SVG icon styling */
+  .icon {
+    display: block; flex-shrink: 0;
+    stroke: currentColor; fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  }
   @keyframes pop { 0% { transform: scale(0.3); opacity: 0; } 70% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
 
   .countdown {
@@ -329,7 +345,7 @@
 
       <!-- Game over overlay -->
       <div class="overlay hidden" id="gameover">
-        <div class="winner-trophy" id="trophy">🏆</div>
+        <div class="winner-trophy" id="trophy"></div>
         <h2 id="resultTitle">You Win!</h2>
         <p class="sub" id="resultSub"></p>
         <div class="row">
@@ -341,20 +357,33 @@
 
     <!-- Mobile paddle controls (outside the court) -->
     <div class="mobile-controls" id="mobileControls">
-      <button class="pad-btn" id="moveUp" aria-label="Move paddle up">&#9650;</button>
-      <button class="pad-btn" id="moveDown" aria-label="Move paddle down">&#9660;</button>
+      <button class="pad-btn" id="moveUp" aria-label="Move paddle up"></button>
+      <button class="pad-btn" id="moveDown" aria-label="Move paddle down"></button>
     </div>
 
     <div class="toolbar">
-      <div class="icon-btn toolbar-menu" id="toMenuBtn" title="Back to menu (Esc)">🏠</div>
-      <div class="icon-btn" id="soundBtn" title="Mute / Unmute (M)">🔊</div>
-      <div class="icon-btn" id="pauseBtn" title="Pause (Space)">⏸</div>
+      <div class="icon-btn toolbar-menu" id="toMenuBtn" title="Back to menu (Esc)"></div>
+      <div class="icon-btn" id="soundBtn" title="Mute / Unmute (M)"></div>
+      <div class="icon-btn" id="pauseBtn" title="Pause (Space)"></div>
     </div>
   </div>
 
 <script>
 (() => {
   "use strict";
+
+  // ---------- Inline SVG icons (stroke-based, matches neon UI) ----------
+  const ICONS = {
+    home: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z"/></svg>',
+    soundOn: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18 6a8.5 8.5 0 0 1 0 12"/></svg>',
+    soundOff: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="m16 9 5 5m0-5-5 5"/></svg>',
+    pause: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12M16 6v12"/></svg>',
+    chevronUp: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>',
+    chevronDown: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
+    trophy: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8M12 17v4"/><path d="M7 4h10v3a5 5 0 0 1-10 0V4z"/><path d="M5 4H3v1a3 3 0 0 0 3 3M19 4h2v1a3 3 0 0 1-3 3"/></svg>',
+    defeat: '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 8 8 8m0-8-8 8"/></svg>',
+  };
+  function setIcon(el, name) { if (el) el.innerHTML = ICONS[name] || ''; }
 
   // ---------- Canvas setup (HiDPI aware) ----------
   const canvas = document.getElementById('game');
@@ -623,7 +652,9 @@
     setInGame(false);
     relayout(); // expand so the results screen fits without scrolling
     const won = G.scoreP > G.scoreC;
-    document.getElementById('trophy').textContent = won ? '🏆' : '💀';
+    const trophyEl = document.getElementById('trophy');
+    trophyEl.classList.toggle('defeat', !won);
+    setIcon(trophyEl, won ? 'trophy' : 'defeat');
     document.getElementById('resultTitle').textContent = won ? 'Victory!' : 'Defeated';
     document.getElementById('resultSub').textContent =
       (won ? 'You outplayed the ' : 'The ') + DIFF[G.difficulty].label.replace('CPU · ','') +
@@ -912,10 +943,17 @@
   function toggleSound() {
     const muted = Sound.toggle();
     const btn = document.getElementById('soundBtn');
-    btn.textContent = muted ? '🔇' : '🔊';
+    setIcon(btn, muted ? 'soundOff' : 'soundOn');
     btn.classList.toggle('off', muted);
   }
   document.getElementById('soundBtn').addEventListener('click', toggleSound);
+
+  // Seed toolbar / control icons
+  setIcon(document.getElementById('toMenuBtn'), 'home');
+  setIcon(document.getElementById('soundBtn'), 'soundOn');
+  setIcon(document.getElementById('pauseBtn'), 'pause');
+  setIcon(document.getElementById('moveUp'), 'chevronUp');
+  setIcon(document.getElementById('moveDown'), 'chevronDown');
 
 })();
 </script>
