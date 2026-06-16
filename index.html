@@ -344,7 +344,6 @@
     <div class="toolbar">
       <div class="icon-btn" id="soundBtn" title="Mute / Unmute (M)">🔊</div>
       <div class="icon-btn" id="pauseBtn" title="Pause (Space)">⏸</div>
-      <div class="icon-btn" id="fsBtn" title="Fullscreen">⛶</div>
     </div>
   </div>
 
@@ -870,11 +869,6 @@
     btn.classList.toggle('off', muted);
   }
   document.getElementById('soundBtn').addEventListener('click', toggleSound);
-
-  document.getElementById('fsBtn').addEventListener('click', () => {
-    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
-    else document.exitFullscreen?.();
-  });
 
 })();
 </script>
