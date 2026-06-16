@@ -6,11 +6,16 @@
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="theme-color" content="#05060f" />
+<meta name="theme-color" content="#0a0a22" />
 <title>NEON PONG — Premium</title>
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
-<link rel="apple-touch-icon" href="icons/icon-180.png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png" />
+<link rel="apple-touch-icon" sizes="167x167" href="icons/icon-167.png" />
+<link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png" />
+<link rel="apple-touch-icon" sizes="120x120" href="icons/icon-120.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
@@ -42,17 +47,14 @@
   html {
     height: 100%;
     height: -webkit-fill-available;
-    background-color: var(--bg-0);
+    background-color: var(--bg-1);
   }
 
   html, body {
     min-height: 100%;
     min-height: 100dvh;
     min-height: -webkit-fill-available;
-    background-color: var(--bg-0);
-    background-image: radial-gradient(circle at 50% -10%, #1a1442 0%, var(--bg-1) 35%, var(--bg-0) 100%);
-    background-repeat: no-repeat;
-    background-size: cover;
+    background: transparent;
     color: #eaf2ff;
     font-family: 'Rajdhani', system-ui, sans-serif;
     overflow: hidden;
@@ -66,11 +68,23 @@
     width: 100%;
   }
 
-  /* Paint iOS home-indicator / safe-area strip so no white shows in PWA mode */
-  .safe-fill {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 0;
-    height: env(safe-area-inset-bottom, 0px);
-    background: var(--bg-0);
+  /* Full-screen background — extends into iOS safe areas so bottom matches the game */
+  .viewport-bg {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
+    z-index: -1;
+    background-color: var(--bg-1);
+    background-image: radial-gradient(circle at 50% -10%, #1a1442 0%, var(--bg-1) 42%, var(--bg-0) 100%);
+    background-repeat: no-repeat;
+    background-size: cover;
+    pointer-events: none;
+  }
+  .viewport-bg::after {
+    content: '';
+    position: absolute; left: 0; right: 0; bottom: 0;
+    height: max(34px, env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(to bottom, transparent, rgba(26, 20, 66, 0.35) 40%, var(--bg-1) 100%);
     pointer-events: none;
   }
 
@@ -325,7 +339,7 @@
 </style>
 </head>
 <body>
-  <div class="safe-fill" aria-hidden="true"></div>
+  <div class="viewport-bg" aria-hidden="true"></div>
 
   <div class="rotate-lock" id="rotateLock" aria-hidden="true">
     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M12 17v.01"/><path d="m16 7-4 4-4-4" transform="rotate(90 12 12)"/></svg>

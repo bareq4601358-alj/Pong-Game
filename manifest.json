@@ -3,10 +3,11 @@
   "short_name": "NEON PONG",
   "description": "Premium neon Pong — you vs the CPU",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#05060f",
-  "theme_color": "#05060f",
+  "background_color": "#0a0a22",
+  "theme_color": "#0a0a22",
   "icons": [
     {
       "src": "icons/icon-192.png",
@@ -18,7 +19,13 @@
       "src": "icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
