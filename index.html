@@ -516,6 +516,26 @@
   const cpu = { x: BASE_W - PADDLE_MARGIN - PADDLE_W, y: BASE_H/2 - PADDLE_H/2, h: PADDLE_H, target: BASE_H/2, aimError: 0, lastVx: 0 };
   const ball = { x: BASE_W/2, y: BASE_H/2, r: 9, vx: 0, vy: 0, speed: 6 };
 
+  // Pending match timers — must be cleared when returning to the menu.
+  let countdownIv = null;
+  let scoreDelayTimer = null;
+
+  function clearMatchTimers() {
+    if (countdownIv) { clearInterval(countdownIv); countdownIv = null; }
+    if (scoreDelayTimer) { clearTimeout(scoreDelayTimer); scoreDelayTimer = null; }
+    document.getElementById('countdown').style.display = 'none';
+  }
+
+  function haltMatch() {
+    clearMatchTimers();
+    ball.vx = 0; ball.vy = 0;
+    ball.x = BASE_W / 2; ball.y = BASE_H / 2;
+    G.trail.length = 0;
+    G.rallyHits = 0;
+    G.shake = 0;
+    G.flash.p = 0; G.flash.c = 0;
+  }
+
   // ---------- Input ----------
   const keys = {};
   let mouseControl = false;
@@ -617,27 +637,38 @@
     G.serveDir = Math.random() < 0.5 ? 1 : -1;
     hide('menu'); hide('pause'); hide('gameover');
     document.getElementById('cpuLabel').textContent = DIFF[G.difficulty].label.replace('CPU · ', '');
-    beginCountdown(() => { resetBall(G.serveDir); G.state = 'playing'; });
+    beginCountdown(() => {
+      if (G.state !== 'countdown') return;
+      resetBall(G.serveDir);
+      G.state = 'playing';
+    });
     setInGame(true);
     relayout(); // shrink court back to gameplay aspect ratio (now reserving control space)
   }
 
   function beginCountdown(done) {
+    clearMatchTimers();
     G.state = 'countdown';
     const el = document.getElementById('countdown');
     el.style.display = 'grid';
     let n = 3;
     el.textContent = n;
     Sound.count();
-    const iv = setInterval(() => {
+    countdownIv = setInterval(() => {
       n--;
       if (n > 0) { el.textContent = n; Sound.count(); }
       else if (n === 0) { el.textContent = 'GO'; Sound.go(); }
-      else { clearInterval(iv); el.style.display = 'none'; done(); }
+      else {
+        clearInterval(countdownIv);
+        countdownIv = null;
+        el.style.display = 'none';
+        if (G.state === 'countdown') done();
+      }
     }, 700);
   }
 
   function scorePoint(who) {
+    if (G.state !== 'playing') return;
     if (who === 'p') { G.scoreP++; G.flash.p = 1; Sound.scoreP(); spawnParticles(BASE_W - 30, ball.y, '#b14bff', 40, 1.4); }
     else { G.scoreC++; G.flash.c = 1; Sound.scoreC(); spawnParticles(30, ball.y, '#2bff88', 40, 1.4); }
     G.shake = 14;
@@ -645,7 +676,15 @@
 
     if (G.scoreP >= G.target || G.scoreC >= G.target) { endMatch(); return; }
     G.state = 'countdown';
-    setTimeout(() => beginCountdown(() => { resetBall(who === 'p' ? 1 : -1); G.state = 'playing'; }), 350);
+    scoreDelayTimer = setTimeout(() => {
+      scoreDelayTimer = null;
+      if (G.state !== 'countdown') return;
+      beginCountdown(() => {
+        if (G.state !== 'countdown') return;
+        resetBall(who === 'p' ? 1 : -1);
+        G.state = 'playing';
+      });
+    }, 350);
   }
 
   function endMatch() {
@@ -670,7 +709,9 @@
     else if (G.state === 'paused') { hide('pause'); G.state = 'playing'; }
   }
   function goMenu() {
-    G.state = 'menu'; hide('pause'); hide('gameover'); show('menu');
+    haltMatch();
+    G.state = 'menu';
+    hide('pause'); hide('gameover'); show('menu');
     upHeld = downHeld = false;
     setInGame(false);
     relayout(); // expand so the menu fits without scrolling
