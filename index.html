@@ -304,7 +304,7 @@
       <!-- Start / Menu overlay -->
       <div class="overlay" id="menu">
         <h2>Ready to Play?</h2>
-        <p class="sub">Move your paddle with the <b>mouse</b> or <kbd>↑</kbd><kbd>↓</kbd> / <kbd>W</kbd><kbd>S</kbd>. Beat the AI to the target score. Each rally gets faster — keep your nerve.</p>
+        <p class="sub">Move your paddle with the <b>mouse</b> or <kbd>↑</kbd><kbd>↓</kbd> / <kbd>W</kbd><kbd>S</kbd>. Beat the CPU to the target score. Each rally gets faster — keep your nerve.</p>
 
         <div class="group">
           <div class="group-label">Difficulty</div>
@@ -658,7 +658,7 @@
     document.getElementById('resultTitle').textContent = won ? 'Victory!' : 'Defeated';
     document.getElementById('resultSub').textContent =
       (won ? 'You outplayed the ' : 'The ') + DIFF[G.difficulty].label.replace('CPU · ','') +
-      (won ? ' AI.' : ' AI got the better of you.') + '  Final score ' + G.scoreP + ' – ' + G.scoreC + '.';
+      (won ? ' CPU.' : ' CPU got the better of you.') + '  Final score ' + G.scoreP + ' – ' + G.scoreC + '.';
     won ? Sound.win() : Sound.lose();
     if (won) spawnParticles(BASE_W/2, BASE_H/2, '#ffd166', 120, 2.2);
     show('gameover');
