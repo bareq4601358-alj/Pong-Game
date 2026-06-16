@@ -9,11 +9,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
 <style>
   :root {
+    /* Neon palette: player = green, CPU = purple, teal accent ties them together.
+       (Variable names kept for brevity; values define the actual theme.) */
     --bg-0: #05060f;
-    --bg-1: #0a0e24;
-    --cyan: #19f0ff;
-    --magenta: #ff2bd6;
-    --violet: #7a5cff;
+    --bg-1: #0a0a22;
+    --cyan: #2bff88;     /* player / primary neon green */
+    --magenta: #b14bff;  /* CPU / neon purple */
+    --violet: #18e0c8;   /* accent / aqua-teal */
     --gold: #ffd166;
     --glass: rgba(255, 255, 255, 0.06);
     --glass-border: rgba(255, 255, 255, 0.14);
@@ -33,7 +35,7 @@
   html, body {
     height: 100%;
     height: 100dvh;
-    background: radial-gradient(circle at 50% -10%, #141a44 0%, var(--bg-1) 35%, var(--bg-0) 100%);
+    background: radial-gradient(circle at 50% -10%, #1a1442 0%, var(--bg-1) 35%, var(--bg-0) 100%);
     color: #eaf2ff;
     font-family: 'Rajdhani', system-ui, sans-serif;
     overflow: hidden;
@@ -79,7 +81,7 @@
     font-size: clamp(28px, 5vw, 52px); letter-spacing: 6px;
     background: linear-gradient(90deg, var(--cyan), var(--violet), var(--magenta));
     -webkit-background-clip: text; background-clip: text; color: transparent;
-    filter: drop-shadow(0 0 18px rgba(122,92,255,0.55));
+    filter: drop-shadow(0 0 18px rgba(177,75,255,0.55));
   }
   .title-bar p { letter-spacing: 5px; font-size: 12px; opacity: 0.6; text-transform: uppercase; }
 
@@ -97,8 +99,8 @@
     font-family: 'Orbitron', sans-serif; font-weight: 900;
     font-size: clamp(34px, 6vw, 56px); line-height: 1;
   }
-  .side.player .num { color: var(--cyan); text-shadow: 0 0 22px rgba(25,240,255,0.55); }
-  .side.cpu .num { color: var(--magenta); text-shadow: 0 0 22px rgba(255,43,214,0.55); }
+  .side.player .num { color: var(--cyan); text-shadow: 0 0 22px rgba(43,255,136,0.55); }
+  .side.cpu .num { color: var(--magenta); text-shadow: 0 0 22px rgba(177,75,255,0.55); }
   .divider {
     font-family: 'Orbitron', sans-serif; font-size: 22px; opacity: 0.4;
     display: flex; flex-direction: column; align-items: center; gap: 2px;
@@ -110,7 +112,7 @@
     position: relative; border-radius: 20px; overflow: hidden;
     border: 1px solid var(--glass-border);
     box-shadow: 0 0 0 1px rgba(255,255,255,0.03), 0 30px 80px rgba(0,0,0,0.55),
-                0 0 60px rgba(122,92,255,0.18);
+                0 0 60px rgba(177,75,255,0.18);
   }
   canvas { display: block; background: linear-gradient(180deg, #070a1c, #04050e); touch-action: none; }
 
@@ -147,7 +149,7 @@
   .seg button:hover { color: #fff; background: rgba(255,255,255,0.06); }
   .seg button.active {
     color: #04060f; background: linear-gradient(90deg, var(--cyan), var(--violet));
-    box-shadow: 0 6px 18px rgba(25,240,255,0.35);
+    box-shadow: 0 6px 18px rgba(43,255,136,0.35);
   }
 
   .btn {
@@ -156,10 +158,10 @@
     padding: 16px 46px; border-radius: 14px; border: none; color: #04060f;
     background: linear-gradient(90deg, var(--cyan), var(--violet), var(--magenta));
     background-size: 200% 100%; background-position: 0% 50%;
-    box-shadow: 0 10px 34px rgba(122,92,255,0.4);
+    box-shadow: 0 10px 34px rgba(177,75,255,0.4);
     transition: transform 0.15s ease, background-position 0.5s ease, box-shadow 0.2s ease;
   }
-  .btn:hover { transform: translateY(-2px); background-position: 100% 50%; box-shadow: 0 14px 44px rgba(255,43,214,0.45); }
+  .btn:hover { transform: translateY(-2px); background-position: 100% 50%; box-shadow: 0 14px 44px rgba(177,75,255,0.45); }
   .btn:active { transform: translateY(0); }
   .btn.ghost {
     background: transparent; color: #eaf2ff; border: 1px solid var(--glass-border);
@@ -196,8 +198,8 @@
   }
   .mobile-controls .pad-btn:active {
     transform: scale(0.95);
-    background: linear-gradient(90deg, rgba(25,240,255,0.25), rgba(122,92,255,0.28));
-    box-shadow: 0 0 26px rgba(25,240,255,0.45), inset 0 0 0 1px rgba(25,240,255,0.5);
+    background: linear-gradient(90deg, rgba(43,255,136,0.25), rgba(24,224,200,0.28));
+    box-shadow: 0 0 26px rgba(43,255,136,0.45), inset 0 0 0 1px rgba(43,255,136,0.5);
     color: #ffffff;
   }
   @media (hover: none) and (pointer: coarse) {
@@ -606,8 +608,8 @@
   }
 
   function scorePoint(who) {
-    if (who === 'p') { G.scoreP++; G.flash.p = 1; Sound.scoreP(); spawnParticles(BASE_W - 30, ball.y, '#ff2bd6', 40, 1.4); }
-    else { G.scoreC++; G.flash.c = 1; Sound.scoreC(); spawnParticles(30, ball.y, '#19f0ff', 40, 1.4); }
+    if (who === 'p') { G.scoreP++; G.flash.p = 1; Sound.scoreP(); spawnParticles(BASE_W - 30, ball.y, '#b14bff', 40, 1.4); }
+    else { G.scoreC++; G.flash.c = 1; Sound.scoreC(); spawnParticles(30, ball.y, '#2bff88', 40, 1.4); }
     G.shake = 14;
     updateScores();
 
@@ -692,8 +694,8 @@
     ball.y += ball.vy;
 
     // Top/bottom walls
-    if (ball.y - ball.r <= 0) { ball.y = ball.r; ball.vy = Math.abs(ball.vy); Sound.wall(); spawnParticles(ball.x, 0, '#7a5cff', 8); }
-    if (ball.y + ball.r >= BASE_H) { ball.y = BASE_H - ball.r; ball.vy = -Math.abs(ball.vy); Sound.wall(); spawnParticles(ball.x, BASE_H, '#7a5cff', 8); }
+    if (ball.y - ball.r <= 0) { ball.y = ball.r; ball.vy = Math.abs(ball.vy); Sound.wall(); spawnParticles(ball.x, 0, '#18e0c8', 8); }
+    if (ball.y + ball.r >= BASE_H) { ball.y = BASE_H - ball.r; ball.vy = -Math.abs(ball.vy); Sound.wall(); spawnParticles(ball.x, BASE_H, '#18e0c8', 8); }
 
     // Paddle collisions — swept (plane-crossing) test so a fast ball can't
     // tunnel straight through a paddle.
@@ -735,7 +737,7 @@
     ball.vy = Math.sin(angle) * ball.speed;
     Sound.paddle();
     G.shake = 6;
-    spawnParticles(ball.x, ball.y, dir > 0 ? '#19f0ff' : '#ff2bd6', 14, 1.1);
+    spawnParticles(ball.x, ball.y, dir > 0 ? '#2bff88' : '#b14bff', 14, 1.1);
   }
 
   // ---------- Render ----------
@@ -772,8 +774,8 @@
     ctx.stroke();
 
     // Goal-line flashes
-    if (G.flash.p > 0.02) { ctx.fillStyle = `rgba(255,43,214,${G.flash.p*0.25})`; ctx.fillRect(BASE_W-6, 0, 6, BASE_H); }
-    if (G.flash.c > 0.02) { ctx.fillStyle = `rgba(25,240,255,${G.flash.c*0.25})`; ctx.fillRect(0, 0, 6, BASE_H); }
+    if (G.flash.p > 0.02) { ctx.fillStyle = `rgba(177,75,255,${G.flash.p*0.25})`; ctx.fillRect(BASE_W-6, 0, 6, BASE_H); }
+    if (G.flash.c > 0.02) { ctx.fillStyle = `rgba(43,255,136,${G.flash.c*0.25})`; ctx.fillRect(0, 0, 6, BASE_H); }
 
     // Ball trail
     for (let i = 0; i < G.trail.length; i++) {
@@ -786,8 +788,8 @@
     }
 
     // Paddles (glow)
-    drawPaddle(player.x, player.y, '#19f0ff');
-    drawPaddle(cpu.x, cpu.y, '#ff2bd6');
+    drawPaddle(player.x, player.y, '#2bff88');
+    drawPaddle(cpu.x, cpu.y, '#b14bff');
 
     // Ball (glow)
     if (G.state === 'playing' || G.state === 'paused' || G.state === 'countdown' || G.state==='over') {
