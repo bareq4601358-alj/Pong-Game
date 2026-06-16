@@ -644,6 +644,15 @@
 
   // ---------- Update ----------
   function update() {
+    // Visual effects animate in every state (so menu/results effects don't freeze).
+    for (let i = G.particles.length - 1; i >= 0; i--) {
+      const p = G.particles[i];
+      p.x += p.vx; p.y += p.vy; p.vy += 0.06; p.life -= p.decay;
+      if (p.life <= 0) G.particles.splice(i, 1);
+    }
+    if (G.shake > 0.4) G.shake *= 0.86; else G.shake = 0;
+    G.flash.p *= 0.9; G.flash.c *= 0.9;
+
     if (G.state !== 'playing') return;
     const d = DIFF[G.difficulty];
 
@@ -677,60 +686,53 @@
     const step = clamp(delta * 0.30, -d.cpuMaxSpeed, d.cpuMaxSpeed);
     cpu.y = clamp(cpu.y + step, 0, BASE_H - cpu.h);
 
-    // Ball movement
+    // Ball movement (remember previous x for swept collision)
+    const prevX = ball.x;
     ball.x += ball.vx;
     ball.y += ball.vy;
 
-    // Trail
+    // Top/bottom walls
+    if (ball.y - ball.r <= 0) { ball.y = ball.r; ball.vy = Math.abs(ball.vy); Sound.wall(); spawnParticles(ball.x, 0, '#7a5cff', 8); }
+    if (ball.y + ball.r >= BASE_H) { ball.y = BASE_H - ball.r; ball.vy = -Math.abs(ball.vy); Sound.wall(); spawnParticles(ball.x, BASE_H, '#7a5cff', 8); }
+
+    // Paddle collisions — swept (plane-crossing) test so a fast ball can't
+    // tunnel straight through a paddle.
+    // Player (left): ball center contacts the paddle's right face here.
+    const leftFace = player.x + PADDLE_W + ball.r;
+    if (ball.vx < 0 && prevX - ball.r > player.x + PADDLE_W && ball.x <= leftFace) {
+      if (ball.y >= player.y - ball.r && ball.y <= player.y + player.h + ball.r) {
+        ball.x = leftFace;
+        bounce(player, 1);
+      }
+    }
+    // CPU (right): ball center contacts the paddle's left face here.
+    const rightFace = cpu.x - ball.r;
+    if (ball.vx > 0 && prevX + ball.r < cpu.x && ball.x >= rightFace) {
+      if (ball.y >= cpu.y - ball.r && ball.y <= cpu.y + cpu.h + ball.r) {
+        ball.x = rightFace;
+        bounce(cpu, -1);
+      }
+    }
+
+    // Trail (after collision so it reflects the corrected position)
     G.trail.push({ x: ball.x, y: ball.y });
     if (G.trail.length > 16) G.trail.shift();
-
-    // Top/bottom walls
-    if (ball.y - ball.r <= 0) { ball.y = ball.r; ball.vy *= -1; Sound.wall(); spawnParticles(ball.x, 0, '#7a5cff', 8); }
-    if (ball.y + ball.r >= BASE_H) { ball.y = BASE_H - ball.r; ball.vy *= -1; Sound.wall(); spawnParticles(ball.x, BASE_H, '#7a5cff', 8); }
-
-    // Paddle collisions
-    // Player (left)
-    if (ball.vx < 0 &&
-        ball.x - ball.r <= player.x + PADDLE_W &&
-        ball.x - ball.r >= player.x - 6 &&
-        ball.y >= player.y && ball.y <= player.y + player.h) {
-      bounce(player, 1);
-    }
-    // CPU (right)
-    if (ball.vx > 0 &&
-        ball.x + ball.r >= cpu.x &&
-        ball.x + ball.r <= cpu.x + PADDLE_W + 6 &&
-        ball.y >= cpu.y && ball.y <= cpu.y + cpu.h) {
-      bounce(cpu, -1);
-    }
 
     // Scoring
     if (ball.x + ball.r < -10) scorePoint('c');
     else if (ball.x - ball.r > BASE_W + 10) scorePoint('p');
-
-    // Particles + shake decay
-    for (let i = G.particles.length - 1; i >= 0; i--) {
-      const p = G.particles[i];
-      p.x += p.vx; p.y += p.vy; p.vy += 0.06; p.life -= p.decay;
-      if (p.life <= 0) G.particles.splice(i, 1);
-    }
-    if (G.shake > 0) G.shake *= 0.86;
-    G.flash.p *= 0.9; G.flash.c *= 0.9;
   }
 
   function bounce(paddle, dir) {
     const d = DIFF[G.difficulty];
-    // Reflect with angle based on hit position
-    const rel = (ball.y - (paddle.y + paddle.h/2)) / (paddle.h/2); // -1..1
+    // Reflect with angle based on hit position (clamped so edge hits stay sane)
+    const rel = clamp((ball.y - (paddle.y + paddle.h/2)) / (paddle.h/2), -1, 1);
     const maxAngle = Math.PI / 3.2; // ~56 deg
     const angle = rel * maxAngle;
     G.rallyHits++;
     ball.speed = Math.min(ball.speed + d.ballAccel, d.ballMax);
     ball.vx = Math.cos(angle) * ball.speed * dir;
     ball.vy = Math.sin(angle) * ball.speed;
-    // nudge out of paddle
-    ball.x += dir * 4;
     Sound.paddle();
     G.shake = 6;
     spawnParticles(ball.x, ball.y, dir > 0 ? '#19f0ff' : '#ff2bd6', 14, 1.1);
@@ -848,13 +850,27 @@
   }
 
   // ---------- Loop ----------
-  function loop() {
-    update();
+  // Fixed-timestep simulation so the game runs at the same speed on 60Hz and
+  // 120Hz (ProMotion) displays, with no jitter from variable frame times.
+  const STEP_MS = 1000 / 60;
+  let lastTime = performance.now();
+  let accumulator = 0;
+  function loop(now) {
+    let frame = now - lastTime;
+    lastTime = now;
+    if (frame > 250) frame = 250; // avoid huge catch-up after tab is backgrounded
+    accumulator += frame;
+    let steps = 0;
+    while (accumulator >= STEP_MS && steps < 5) {
+      update();
+      accumulator -= STEP_MS;
+      steps++;
+    }
     draw();
     setInGame(G.state === 'playing' || G.state === 'paused' || G.state === 'countdown');
     requestAnimationFrame(loop);
   }
-  loop();
+  requestAnimationFrame(loop);
 
   // ---------- UI wiring ----------
   function updateScores() {
