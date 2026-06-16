@@ -187,25 +187,6 @@
   .winner-trophy { font-size: 60px; filter: drop-shadow(0 0 24px var(--gold)); animation: pop 0.6s ease; }
   @keyframes pop { 0% { transform: scale(0.3); opacity: 0; } 70% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
 
-  /* On-screen paddle controls (mobile only) */
-  .touch-controls {
-    position: absolute; right: 16px; bottom: 16px; z-index: 4;
-    display: none; flex-direction: column; gap: 16px;
-  }
-  .touch-controls button {
-    width: 66px; height: 66px; border-radius: 18px; font-size: 26px;
-    color: #eaf2ff; background: rgba(25,240,255,0.12);
-    border: 1px solid var(--glass-border);
-    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-    display: grid; place-items: center; cursor: pointer;
-    user-select: none; -webkit-user-select: none; touch-action: none;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.35);
-  }
-  .touch-controls button:active { background: rgba(25,240,255,0.34); transform: scale(0.93); }
-  @media (hover: none) and (pointer: coarse) {
-    .court-wrap.in-game .touch-controls { display: flex; }
-  }
-
   .countdown {
     position: absolute; inset: 0; display: grid; place-items: center; z-index: 4;
     font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: clamp(70px, 14vw, 150px);
@@ -264,12 +245,6 @@
 
     <div class="court-wrap">
       <canvas id="game" width="900" height="560"></canvas>
-
-      <!-- On-screen paddle controls (mobile) -->
-      <div class="touch-controls" id="touchControls">
-        <button id="touchUp" aria-label="Move up">&#9650;</button>
-        <button id="touchDown" aria-label="Move down">&#9660;</button>
-      </div>
 
       <!-- Countdown -->
       <div class="countdown" id="countdown" style="display:none"></div>
@@ -502,18 +477,6 @@
     lastTouchEnd = now;
   }, { passive: false });
 
-  // On-screen up/down buttons (held while pressed).
-  let upHeld = false, downHeld = false;
-  function bindHold(el, set) {
-    const press = (e) => { e.preventDefault(); set(true); mouseControl = false; };
-    const release = (e) => { e.preventDefault(); set(false); };
-    el.addEventListener('pointerdown', press);
-    el.addEventListener('pointerup', release);
-    el.addEventListener('pointerleave', release);
-    el.addEventListener('pointercancel', release);
-  }
-  bindHold(document.getElementById('touchUp'), (v) => upHeld = v);
-  bindHold(document.getElementById('touchDown'), (v) => downHeld = v);
 
   // ---------- Helpers ----------
   function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
@@ -601,7 +564,6 @@
   }
   function goMenu() {
     G.state = 'menu'; hide('pause'); hide('gameover'); show('menu');
-    upHeld = downHeld = false;
     relayout(); // expand so the menu fits without scrolling
   }
 
@@ -610,10 +572,10 @@
     if (G.state !== 'playing') return;
     const d = DIFF[G.difficulty];
 
-    // Player keyboard / on-screen button movement
+    // Player keyboard movement
     const kSpeed = 8.5;
-    if (keys['arrowup'] || keys['w'] || upHeld) { player.y -= kSpeed; mouseControl = false; }
-    if (keys['arrowdown'] || keys['s'] || downHeld) { player.y += kSpeed; mouseControl = false; }
+    if (keys['arrowup'] || keys['w']) { player.y -= kSpeed; mouseControl = false; }
+    if (keys['arrowdown'] || keys['s']) { player.y += kSpeed; mouseControl = false; }
     player.y = clamp(player.y, 0, BASE_H - player.h);
 
     // CPU AI: predict ball y with reaction + error, ease toward it
