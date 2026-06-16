@@ -404,11 +404,14 @@
   })();
 
   // ---------- Difficulty presets ----------
+  // ballStart : serve speed | ballAccel : speed gained per paddle hit | ballMax : speed cap
+  // cpuMaxSpeed : px/frame the CPU paddle can actually move (the real skill limiter)
+  // react : prediction accuracy 0..1 | err : aim error in px | zone : how early it reacts 0..1
   const DIFF = {
-    easy:   { speed: 0.052, react: 0.55, err: 70, ballStart: 5.2, label: 'CPU · Easy' },
-    normal: { speed: 0.075, react: 0.72, err: 42, ballStart: 6.2, label: 'CPU · Normal' },
-    hard:   { speed: 0.105, react: 0.86, err: 22, ballStart: 7.0, label: 'CPU · Hard' },
-    insane: { speed: 0.150, react: 0.96, err: 8,  ballStart: 7.8, label: 'CPU · Insane' },
+    easy:   { ballStart: 4.4, ballAccel: 0.18, ballMax: 8.5,  cpuMaxSpeed: 4.2,  react: 0.40, err: 105, zone: 0.40, label: 'CPU · Easy' },
+    normal: { ballStart: 5.8, ballAccel: 0.32, ballMax: 11.5, cpuMaxSpeed: 7.0,  react: 0.68, err: 60,  zone: 0.62, label: 'CPU · Normal' },
+    hard:   { ballStart: 7.2, ballAccel: 0.46, ballMax: 15.0, cpuMaxSpeed: 10.5, react: 0.88, err: 26,  zone: 0.84, label: 'CPU · Hard' },
+    insane: { ballStart: 9.0, ballAccel: 0.60, ballMax: 19.0, cpuMaxSpeed: 15.0, react: 0.99, err: 7,   zone: 1.00, label: 'CPU · Insane' },
   };
 
   // ---------- Game state ----------
@@ -427,7 +430,7 @@
 
   const PADDLE_W = 14, PADDLE_H = 96, PADDLE_MARGIN = 26;
   const player = { x: PADDLE_MARGIN, y: BASE_H/2 - PADDLE_H/2, h: PADDLE_H, vy: 0 };
-  const cpu = { x: BASE_W - PADDLE_MARGIN - PADDLE_W, y: BASE_H/2 - PADDLE_H/2, h: PADDLE_H, target: BASE_H/2 };
+  const cpu = { x: BASE_W - PADDLE_MARGIN - PADDLE_W, y: BASE_H/2 - PADDLE_H/2, h: PADDLE_H, target: BASE_H/2, aimError: 0, lastVx: 0 };
   const ball = { x: BASE_W/2, y: BASE_H/2, r: 9, vx: 0, vy: 0, speed: 6 };
 
   // ---------- Input ----------
@@ -503,6 +506,7 @@
     ball.vy = Math.sin(angle) * ball.speed;
     G.rallyHits = 0;
     G.trail.length = 0;
+    cpu.lastVx = 0; // force a fresh aim error if the serve heads toward the CPU
   }
 
   function startMatch() {
@@ -578,25 +582,29 @@
     if (keys['arrowdown'] || keys['s']) { player.y += kSpeed; mouseControl = false; }
     player.y = clamp(player.y, 0, BASE_H - player.h);
 
-    // CPU AI: predict ball y with reaction + error, ease toward it
-    let aim = BASE_H / 2;
-    if (ball.vx > 0) {
-      // crude prediction of where ball will cross cpu plane
-      let predY = ball.y, predVy = ball.vy, predX = ball.x;
+    // CPU AI: react only inside its skill "zone", predict the bounce with a
+    // stable per-rally aim error, then chase the target capped by a real top speed.
+    // Pick a fresh aim error each time the ball turns back toward the CPU.
+    if (ball.vx > 0 && cpu.lastVx <= 0) cpu.aimError = rand(-d.err, d.err);
+    cpu.lastVx = ball.vx;
+
+    const reactX = BASE_W * (1 - d.zone); // weaker AI only starts tracking once the ball is closer
+    let desired = BASE_H / 2;             // idle: drift back toward center
+    if (ball.vx > 0 && ball.x >= reactX) {
+      // predict where the ball will cross the CPU plane, reflecting off walls
       const steps = Math.max(0, (cpu.x - ball.x) / Math.max(1, ball.vx));
-      predY = ball.y + ball.vy * steps;
-      // reflect off walls
+      let predY = ball.y + ball.vy * steps;
       const range = BASE_H;
-      predY = predY % (2 * range);
-      if (predY < 0) predY += 2 * range;
+      predY = ((predY % (2 * range)) + 2 * range) % (2 * range);
       if (predY > range) predY = 2 * range - predY;
-      aim = predY * d.react + (BASE_H/2) * (1 - d.react) + rand(-d.err, d.err);
-    } else {
-      aim = BASE_H/2 + rand(-d.err, d.err) * 0.4;
+      // blend the perfect prediction with the center based on skill, plus error
+      desired = predY * d.react + (BASE_H / 2) * (1 - d.react) + cpu.aimError;
     }
-    cpu.target = clamp(aim - cpu.h/2, 0, BASE_H - cpu.h);
-    cpu.y += (cpu.target - cpu.y) * d.speed;
-    cpu.y = clamp(cpu.y, 0, BASE_H - cpu.h);
+    cpu.target = clamp(desired - cpu.h / 2, 0, BASE_H - cpu.h);
+    // Move toward target, but never faster than this difficulty allows.
+    const delta = cpu.target - cpu.y;
+    const step = clamp(delta * 0.30, -d.cpuMaxSpeed, d.cpuMaxSpeed);
+    cpu.y = clamp(cpu.y + step, 0, BASE_H - cpu.h);
 
     // Ball movement
     ball.x += ball.vx;
@@ -641,12 +649,13 @@
   }
 
   function bounce(paddle, dir) {
+    const d = DIFF[G.difficulty];
     // Reflect with angle based on hit position
     const rel = (ball.y - (paddle.y + paddle.h/2)) / (paddle.h/2); // -1..1
     const maxAngle = Math.PI / 3.2; // ~56 deg
     const angle = rel * maxAngle;
     G.rallyHits++;
-    ball.speed = Math.min(ball.speed + 0.35, 16);
+    ball.speed = Math.min(ball.speed + d.ballAccel, d.ballMax);
     ball.vx = Math.cos(angle) * ball.speed * dir;
     ball.vy = Math.sin(angle) * ball.speed;
     // nudge out of paddle
