@@ -3,7 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>NEON PONG — Premium</title>
+<link rel="manifest" href="manifest.json" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
@@ -256,6 +260,23 @@
     background: var(--glass); opacity: 0.85;
   }
 
+  /* Portrait lock overlay (mobile landscape fallback) */
+  .rotate-lock {
+    display: none; position: fixed; inset: 0; z-index: 99999;
+    background: radial-gradient(circle at 50% 30%, #1a1442 0%, var(--bg-0) 70%);
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; padding: 28px; text-align: center;
+  }
+  .rotate-lock .icon { width: 56px; height: 56px; stroke: var(--cyan); }
+  .rotate-lock h2 {
+    font-family: 'Orbitron', sans-serif; font-weight: 700;
+    font-size: clamp(18px, 5vw, 26px); letter-spacing: 3px;
+  }
+  .rotate-lock p { opacity: 0.65; letter-spacing: 1px; font-size: 14px; max-width: 280px; line-height: 1.5; }
+  @media (hover: none) and (pointer: coarse) and (orientation: landscape) {
+    .rotate-lock { display: flex; }
+  }
+
   @media (max-width: 560px), (max-height: 720px) {
     .side { min-width: 72px; }
     .scoreboard { gap: 12px; padding: 7px 14px; }
@@ -276,6 +297,12 @@
 </style>
 </head>
 <body>
+  <div class="rotate-lock" id="rotateLock" aria-hidden="true">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M12 17v.01"/><path d="m16 7-4 4-4-4" transform="rotate(90 12 12)"/></svg>
+    <h2>Rotate to Portrait</h2>
+    <p>This game is locked to portrait mode. Turn your phone upright to continue.</p>
+  </div>
+
   <div class="aurora"><span class="a"></span><span class="b"></span><span class="c"></span></div>
 
   <div class="stage">
@@ -999,6 +1026,23 @@
   setIcon(document.getElementById('pauseBtn'), 'pause');
   setIcon(document.getElementById('moveUp'), 'chevronUp');
   setIcon(document.getElementById('moveDown'), 'chevronDown');
+
+  // Lock to portrait on mobile (API where supported; landscape overlay as fallback).
+  const isTouchMobile = () => window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+  function lockPortrait() {
+    if (!isTouchMobile()) return;
+    const lock = screen.orientation && screen.orientation.lock;
+    if (lock) lock.call(screen.orientation, 'portrait').catch(() => {});
+  }
+  let portraitLocked = false;
+  function tryLockPortrait() {
+    if (portraitLocked || !isTouchMobile()) return;
+    portraitLocked = true;
+    lockPortrait();
+  }
+  document.addEventListener('touchstart', tryLockPortrait, { once: true, passive: true });
+  document.addEventListener('click', tryLockPortrait, { once: true });
+  document.getElementById('startBtn').addEventListener('click', lockPortrait);
 
 })();
 </script>

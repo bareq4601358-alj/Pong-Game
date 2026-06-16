@@ -1,0 +1,10 @@
+{
+  "name": "NEON PONG — Premium",
+  "short_name": "NEON PONG",
+  "description": "Premium neon Pong — you vs the CPU",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#05060f",
+  "theme_color": "#05060f"
+}
