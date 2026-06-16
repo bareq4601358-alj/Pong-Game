@@ -170,6 +170,31 @@
     padding: 2px 8px; margin: 0 2px; font-weight: 700;
   }
 
+  /* Mobile paddle controls (shown on touch devices during a match) */
+  .mobile-controls {
+    display: none; width: 100%; max-width: 560px; gap: 14px;
+    justify-content: center;
+  }
+  .mobile-controls .pad-btn {
+    flex: 1; max-width: 250px; height: 62px; border-radius: 16px;
+    font-size: 22px; color: #eaf2ff; cursor: pointer;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 10px 30px rgba(0,0,0,0.4);
+    display: grid; place-items: center;
+    user-select: none; -webkit-user-select: none; touch-action: none;
+    transition: transform 0.12s ease, background 0.18s ease, box-shadow 0.18s ease;
+  }
+  .mobile-controls .pad-btn:active {
+    transform: scale(0.95);
+    background: linear-gradient(90deg, rgba(25,240,255,0.25), rgba(122,92,255,0.28));
+    box-shadow: 0 0 26px rgba(25,240,255,0.45), inset 0 0 0 1px rgba(25,240,255,0.5);
+    color: #ffffff;
+  }
+  @media (hover: none) and (pointer: coarse) {
+    body.in-game .mobile-controls { display: flex; }
+  }
+
   /* Bottom toolbar */
   .toolbar { display: flex; gap: 10px; align-items: center; }
   .icon-btn {
@@ -303,6 +328,12 @@
       </div>
     </div>
 
+    <!-- Mobile paddle controls (outside the court) -->
+    <div class="mobile-controls" id="mobileControls">
+      <button class="pad-btn" id="moveUp" aria-label="Move paddle up">&#9650;</button>
+      <button class="pad-btn" id="moveDown" aria-label="Move paddle down">&#9660;</button>
+    </div>
+
     <div class="toolbar">
       <div class="icon-btn toolbar-menu" id="toMenuBtn" title="Back to menu (Esc)">🏠</div>
       <div class="icon-btn" id="soundBtn" title="Mute / Unmute (M)">🔊</div>
@@ -328,15 +359,20 @@
     const titleBar = document.querySelector('.title-bar');
     const scoreboard = document.querySelector('.scoreboard');
     const toolbar = document.querySelector('.toolbar');
+    const controls = document.querySelector('.mobile-controls');
     const cs = getComputedStyle(stage);
     const gap = parseFloat(cs.rowGap || cs.gap) || 16;
     const padTop = parseFloat(cs.paddingTop) || 0;
     const padBottom = parseFloat(cs.paddingBottom) || 0;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
+    // Only reserve room for the mobile controls when they're actually visible.
+    const controlsH = (controls && controls.offsetParent !== null)
+                    ? controls.offsetHeight + gap : 0;
     const usedH = (titleBar ? titleBar.offsetHeight : 0)
                 + (scoreboard ? scoreboard.offsetHeight : 0)
                 + (toolbar ? toolbar.offsetHeight : 0)
+                + controlsH
                 + gap * 3 + padTop + padBottom + 6;
     const availW = Math.min(vw - 20, 1000);
     const availH = Math.max(180, vh - usedH);
@@ -354,6 +390,10 @@
     canvas.width = Math.round(BASE_W * DPR);
     canvas.height = Math.round(BASE_H * DPR);
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  function setInGame(on) {
+    courtWrap.classList.toggle('in-game', on);
+    document.body.classList.toggle('in-game', on);
   }
   function relayout() {
     sizeCanvas(G.state === 'menu' || G.state === 'over');
@@ -480,6 +520,19 @@
     lastTouchEnd = now;
   }, { passive: false });
 
+  // Mobile up/down buttons (held while pressed).
+  let upHeld = false, downHeld = false;
+  function bindHold(el, set) {
+    const press = (e) => { e.preventDefault(); set(true); mouseControl = false; };
+    const release = (e) => { e.preventDefault(); set(false); };
+    el.addEventListener('pointerdown', press);
+    el.addEventListener('pointerup', release);
+    el.addEventListener('pointerleave', release);
+    el.addEventListener('pointercancel', release);
+  }
+  bindHold(document.getElementById('moveUp'), (v) => upHeld = v);
+  bindHold(document.getElementById('moveDown'), (v) => downHeld = v);
+
 
   // ---------- Helpers ----------
   function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
@@ -519,7 +572,8 @@
     hide('menu'); hide('pause'); hide('gameover');
     document.getElementById('cpuLabel').textContent = DIFF[G.difficulty].label.replace('CPU · ', '');
     beginCountdown(() => { resetBall(G.serveDir); G.state = 'playing'; });
-    relayout(); // shrink court back to gameplay aspect ratio
+    setInGame(true);
+    relayout(); // shrink court back to gameplay aspect ratio (now reserving control space)
   }
 
   function beginCountdown(done) {
@@ -550,6 +604,7 @@
 
   function endMatch() {
     G.state = 'over';
+    setInGame(false);
     relayout(); // expand so the results screen fits without scrolling
     const won = G.scoreP > G.scoreC;
     document.getElementById('trophy').textContent = won ? '🏆' : '💀';
@@ -568,6 +623,8 @@
   }
   function goMenu() {
     G.state = 'menu'; hide('pause'); hide('gameover'); show('menu');
+    upHeld = downHeld = false;
+    setInGame(false);
     relayout(); // expand so the menu fits without scrolling
   }
 
@@ -576,10 +633,10 @@
     if (G.state !== 'playing') return;
     const d = DIFF[G.difficulty];
 
-    // Player keyboard movement
+    // Player keyboard / on-screen button movement
     const kSpeed = 8.5;
-    if (keys['arrowup'] || keys['w']) { player.y -= kSpeed; mouseControl = false; }
-    if (keys['arrowdown'] || keys['s']) { player.y += kSpeed; mouseControl = false; }
+    if (keys['arrowup'] || keys['w'] || upHeld) { player.y -= kSpeed; mouseControl = false; }
+    if (keys['arrowdown'] || keys['s'] || downHeld) { player.y += kSpeed; mouseControl = false; }
     player.y = clamp(player.y, 0, BASE_H - player.h);
 
     // CPU AI: react only inside its skill "zone", predict the bounce with a
@@ -780,9 +837,7 @@
   function loop() {
     update();
     draw();
-    const inGame = (G.state === 'playing' || G.state === 'paused' || G.state === 'countdown');
-    courtWrap.classList.toggle('in-game', inGame);
-    document.body.classList.toggle('in-game', inGame);
+    setInGame(G.state === 'playing' || G.state === 'paused' || G.state === 'countdown');
     requestAnimationFrame(loop);
   }
   loop();
