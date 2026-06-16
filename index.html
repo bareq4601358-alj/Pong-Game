@@ -184,6 +184,38 @@
   .winner-trophy { font-size: 60px; filter: drop-shadow(0 0 24px var(--gold)); animation: pop 0.6s ease; }
   @keyframes pop { 0% { transform: scale(0.3); opacity: 0; } 70% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
 
+  /* In-game HUD menu button */
+  .hud-btn {
+    position: absolute; top: 12px; left: 12px; z-index: 4;
+    font-family: 'Rajdhani', sans-serif; font-weight: 700; letter-spacing: 1px;
+    font-size: 13px; text-transform: uppercase; color: #eaf2ff; cursor: pointer;
+    background: rgba(10,14,40,0.55); border: 1px solid var(--glass-border);
+    border-radius: 10px; padding: 9px 15px; backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px); display: none; align-items: center; gap: 6px;
+    transition: background 0.18s ease, transform 0.18s ease; touch-action: manipulation;
+  }
+  .hud-btn:hover { background: rgba(255,255,255,0.16); transform: translateY(-1px); }
+  .court-wrap.in-game .hud-btn { display: inline-flex; }
+
+  /* On-screen paddle controls (mobile only) */
+  .touch-controls {
+    position: absolute; right: 16px; bottom: 16px; z-index: 4;
+    display: none; flex-direction: column; gap: 16px;
+  }
+  .touch-controls button {
+    width: 66px; height: 66px; border-radius: 18px; font-size: 26px;
+    color: #eaf2ff; background: rgba(25,240,255,0.12);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    display: grid; place-items: center; cursor: pointer;
+    user-select: none; -webkit-user-select: none; touch-action: none;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+  }
+  .touch-controls button:active { background: rgba(25,240,255,0.34); transform: scale(0.93); }
+  @media (hover: none) and (pointer: coarse) {
+    .court-wrap.in-game .touch-controls { display: flex; }
+  }
+
   .countdown {
     position: absolute; inset: 0; display: grid; place-items: center; z-index: 4;
     font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: clamp(70px, 14vw, 150px);
@@ -242,6 +274,15 @@
 
     <div class="court-wrap">
       <canvas id="game" width="900" height="560"></canvas>
+
+      <!-- In-game HUD menu button (desktop + mobile) -->
+      <button class="hud-btn" id="hudMenu" title="Back to menu (Esc)">&#9776; Menu</button>
+
+      <!-- On-screen paddle controls (mobile) -->
+      <div class="touch-controls" id="touchControls">
+        <button id="touchUp" aria-label="Move up">&#9650;</button>
+        <button id="touchDown" aria-label="Move down">&#9660;</button>
+      </div>
 
       <!-- Countdown -->
       <div class="countdown" id="countdown" style="display:none"></div>
@@ -314,10 +355,11 @@
   // ---------- Canvas setup (HiDPI aware) ----------
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
+  const courtWrap = document.querySelector('.court-wrap');
   const BASE_W = 900, BASE_H = 560;
   let DPR = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
 
-  function sizeCanvas() {
+  function sizeCanvas(expanded) {
     DPR = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
     // Measure space actually left over after the other UI, so it fits any phone.
     const stage = document.querySelector('.stage');
@@ -336,21 +378,30 @@
                 + gap * 3 + padTop + padBottom + 6;
     const availW = Math.min(vw - 20, 1000);
     const availH = Math.max(180, vh - usedH);
-    let w = availW;
-    let h = w * (BASE_H / BASE_W);
-    if (h > availH) { h = availH; w = h * (BASE_W / BASE_H); }
+    let w, h;
+    if (expanded) {
+      // Menu / results: fill the available space so content never needs scrolling.
+      w = availW; h = availH;
+    } else {
+      // Gameplay: keep the proper court aspect ratio.
+      w = availW; h = w * (BASE_H / BASE_W);
+      if (h > availH) { h = availH; w = h * (BASE_W / BASE_H); }
+    }
     canvas.style.width = w + 'px';
     canvas.style.height = h + 'px';
     canvas.width = Math.round(BASE_W * DPR);
     canvas.height = Math.round(BASE_H * DPR);
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   }
-  window.addEventListener('resize', sizeCanvas);
-  window.addEventListener('orientationchange', () => { sizeCanvas(); setTimeout(sizeCanvas, 250); });
+  function relayout() {
+    sizeCanvas(G.state === 'menu' || G.state === 'over');
+  }
+  window.addEventListener('resize', relayout);
+  window.addEventListener('orientationchange', () => { relayout(); setTimeout(relayout, 250); });
   // Re-measure once fonts have loaded (font metrics change element heights).
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(sizeCanvas);
-  sizeCanvas();
-  setTimeout(sizeCanvas, 100);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(relayout);
+  sizeCanvas(true);
+  setTimeout(relayout, 100);
 
   // ---------- Audio (Web Audio API, no asset files) ----------
   const Sound = (() => {
@@ -464,6 +515,19 @@
     lastTouchEnd = now;
   }, { passive: false });
 
+  // On-screen up/down buttons (held while pressed).
+  let upHeld = false, downHeld = false;
+  function bindHold(el, set) {
+    const press = (e) => { e.preventDefault(); set(true); mouseControl = false; };
+    const release = (e) => { e.preventDefault(); set(false); };
+    el.addEventListener('pointerdown', press);
+    el.addEventListener('pointerup', release);
+    el.addEventListener('pointerleave', release);
+    el.addEventListener('pointercancel', release);
+  }
+  bindHold(document.getElementById('touchUp'), (v) => upHeld = v);
+  bindHold(document.getElementById('touchDown'), (v) => downHeld = v);
+
   // ---------- Helpers ----------
   function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
   function rand(a, b) { return a + Math.random() * (b - a); }
@@ -501,6 +565,7 @@
     hide('menu'); hide('pause'); hide('gameover');
     document.getElementById('cpuLabel').textContent = DIFF[G.difficulty].label.replace('CPU · ', '');
     beginCountdown(() => { resetBall(G.serveDir); G.state = 'playing'; });
+    relayout(); // shrink court back to gameplay aspect ratio
   }
 
   function beginCountdown(done) {
@@ -531,6 +596,7 @@
 
   function endMatch() {
     G.state = 'over';
+    relayout(); // expand so the results screen fits without scrolling
     const won = G.scoreP > G.scoreC;
     document.getElementById('trophy').textContent = won ? '🏆' : '💀';
     document.getElementById('resultTitle').textContent = won ? 'Victory!' : 'Defeated';
@@ -546,17 +612,21 @@
     if (G.state === 'playing') { G.state = 'paused'; show('pause'); }
     else if (G.state === 'paused') { hide('pause'); G.state = 'playing'; }
   }
-  function goMenu() { G.state = 'menu'; hide('pause'); hide('gameover'); show('menu'); }
+  function goMenu() {
+    G.state = 'menu'; hide('pause'); hide('gameover'); show('menu');
+    upHeld = downHeld = false;
+    relayout(); // expand so the menu fits without scrolling
+  }
 
   // ---------- Update ----------
   function update() {
     if (G.state !== 'playing') return;
     const d = DIFF[G.difficulty];
 
-    // Player keyboard movement
+    // Player keyboard / on-screen button movement
     const kSpeed = 8.5;
-    if (keys['arrowup'] || keys['w']) { player.y -= kSpeed; mouseControl = false; }
-    if (keys['arrowdown'] || keys['s']) { player.y += kSpeed; mouseControl = false; }
+    if (keys['arrowup'] || keys['w'] || upHeld) { player.y -= kSpeed; mouseControl = false; }
+    if (keys['arrowdown'] || keys['s'] || downHeld) { player.y += kSpeed; mouseControl = false; }
     player.y = clamp(player.y, 0, BASE_H - player.h);
 
     // CPU AI: predict ball y with reaction + error, ease toward it
@@ -752,6 +822,8 @@
   function loop() {
     update();
     draw();
+    const inGame = (G.state === 'playing' || G.state === 'paused' || G.state === 'countdown');
+    courtWrap.classList.toggle('in-game', inGame);
     requestAnimationFrame(loop);
   }
   loop();
@@ -789,6 +861,7 @@
   document.getElementById('pauseBtn').addEventListener('click', () => {
     if (G.state === 'playing' || G.state === 'paused') togglePause();
   });
+  document.getElementById('hudMenu').addEventListener('click', goMenu);
 
   function toggleSound() {
     const muted = Sound.toggle();
