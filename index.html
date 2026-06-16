@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>NEON PONG — Premium</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-0: #05060f;
+    --bg-1: #0a0e24;
+    --cyan: #19f0ff;
+    --magenta: #ff2bd6;
+    --violet: #7a5cff;
+    --gold: #ffd166;
+    --glass: rgba(255, 255, 255, 0.06);
+    --glass-border: rgba(255, 255, 255, 0.14);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+    background: radial-gradient(circle at 50% -10%, #141a44 0%, var(--bg-1) 35%, var(--bg-0) 100%);
+    color: #eaf2ff;
+    font-family: 'Rajdhani', system-ui, sans-serif;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* Ambient animated aurora background */
+  .aurora {
+    position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
+    filter: blur(60px); opacity: 0.5;
+  }
+  .aurora span {
+    position: absolute; display: block; border-radius: 50%;
+    mix-blend-mode: screen; animation: drift 18s ease-in-out infinite;
+  }
+  .aurora .a { width: 50vw; height: 50vw; left: -10vw; top: -10vw; background: var(--cyan); animation-delay: 0s; }
+  .aurora .b { width: 45vw; height: 45vw; right: -8vw; top: 5vw; background: var(--magenta); animation-delay: -6s; }
+  .aurora .c { width: 40vw; height: 40vw; left: 30vw; bottom: -15vw; background: var(--violet); animation-delay: -12s; }
+  @keyframes drift {
+    0%, 100% { transform: translate(0,0) scale(1); }
+    33% { transform: translate(6vw, 4vh) scale(1.15); }
+    66% { transform: translate(-5vw, -3vh) scale(0.9); }
+  }
+
+  .stage {
+    position: relative; z-index: 1;
+    height: 100%; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 18px; padding: 20px;
+  }
+
+  .title-bar { text-align: center; }
+  .title-bar h1 {
+    font-family: 'Orbitron', sans-serif; font-weight: 900;
+    font-size: clamp(28px, 5vw, 52px); letter-spacing: 6px;
+    background: linear-gradient(90deg, var(--cyan), var(--violet), var(--magenta));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 18px rgba(122,92,255,0.55));
+  }
+  .title-bar p { letter-spacing: 5px; font-size: 12px; opacity: 0.6; text-transform: uppercase; }
+
+  /* Scoreboard */
+  .scoreboard {
+    display: flex; align-items: center; gap: clamp(16px, 4vw, 60px);
+    padding: 10px 26px; border-radius: 18px;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+  }
+  .side { text-align: center; min-width: 120px; }
+  .side .label { font-size: 12px; letter-spacing: 3px; text-transform: uppercase; opacity: 0.65; }
+  .side .num {
+    font-family: 'Orbitron', sans-serif; font-weight: 900;
+    font-size: clamp(34px, 6vw, 56px); line-height: 1;
+  }
+  .side.player .num { color: var(--cyan); text-shadow: 0 0 22px rgba(25,240,255,0.55); }
+  .side.cpu .num { color: var(--magenta); text-shadow: 0 0 22px rgba(255,43,214,0.55); }
+  .divider {
+    font-family: 'Orbitron', sans-serif; font-size: 22px; opacity: 0.4;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .divider .best { font-size: 10px; letter-spacing: 2px; opacity: 0.7; }
+
+  /* Canvas wrap */
+  .court-wrap {
+    position: relative; border-radius: 20px; overflow: hidden;
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.03), 0 30px 80px rgba(0,0,0,0.55),
+                0 0 60px rgba(122,92,255,0.18);
+  }
+  canvas { display: block; background: linear-gradient(180deg, #070a1c, #04050e); }
+
+  /* Overlays */
+  .overlay {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 22px; text-align: center;
+    background: radial-gradient(circle at 50% 40%, rgba(10,14,40,0.55), rgba(3,4,12,0.88));
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    transition: opacity 0.35s ease; z-index: 5; padding: 24px;
+  }
+  .overlay.hidden { opacity: 0; pointer-events: none; }
+
+  .overlay h2 {
+    font-family: 'Orbitron', sans-serif; font-weight: 900;
+    font-size: clamp(26px, 4.5vw, 44px); letter-spacing: 4px;
+  }
+  .overlay .sub { opacity: 0.7; letter-spacing: 2px; max-width: 460px; line-height: 1.5; }
+
+  .group { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .group .group-label { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; opacity: 0.55; }
+
+  .seg {
+    display: flex; gap: 6px; padding: 5px; border-radius: 14px;
+    background: var(--glass); border: 1px solid var(--glass-border);
+  }
+  .seg button {
+    font-family: 'Rajdhani', sans-serif; font-weight: 700; letter-spacing: 1.5px;
+    font-size: 14px; color: #cdd7ef; background: transparent;
+    border: none; padding: 9px 18px; border-radius: 10px; cursor: pointer;
+    transition: all 0.2s ease; text-transform: uppercase;
+  }
+  .seg button:hover { color: #fff; background: rgba(255,255,255,0.06); }
+  .seg button.active {
+    color: #04060f; background: linear-gradient(90deg, var(--cyan), var(--violet));
+    box-shadow: 0 6px 18px rgba(25,240,255,0.35);
+  }
+
+  .btn {
+    font-family: 'Orbitron', sans-serif; font-weight: 700; letter-spacing: 2px;
+    font-size: 16px; text-transform: uppercase; cursor: pointer;
+    padding: 16px 46px; border-radius: 14px; border: none; color: #04060f;
+    background: linear-gradient(90deg, var(--cyan), var(--violet), var(--magenta));
+    background-size: 200% 100%; background-position: 0% 50%;
+    box-shadow: 0 10px 34px rgba(122,92,255,0.4);
+    transition: transform 0.15s ease, background-position 0.5s ease, box-shadow 0.2s ease;
+  }
+  .btn:hover { transform: translateY(-2px); background-position: 100% 50%; box-shadow: 0 14px 44px rgba(255,43,214,0.45); }
+  .btn:active { transform: translateY(0); }
+  .btn.ghost {
+    background: transparent; color: #eaf2ff; border: 1px solid var(--glass-border);
+    box-shadow: none; padding: 13px 30px; font-size: 13px;
+  }
+  .btn.ghost:hover { background: rgba(255,255,255,0.06); transform: translateY(-2px); }
+
+  .row { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; align-items: center; }
+
+  .hint {
+    display: flex; gap: 18px; flex-wrap: wrap; justify-content: center;
+    font-size: 12px; letter-spacing: 1px; opacity: 0.55;
+  }
+  .hint kbd {
+    font-family: 'Rajdhani', sans-serif; background: rgba(255,255,255,0.08);
+    border: 1px solid var(--glass-border); border-radius: 6px;
+    padding: 2px 8px; margin: 0 2px; font-weight: 700;
+  }
+
+  /* Bottom toolbar */
+  .toolbar { display: flex; gap: 10px; align-items: center; }
+  .icon-btn {
+    width: 44px; height: 44px; border-radius: 12px; cursor: pointer;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    color: #eaf2ff; display: grid; place-items: center; font-size: 18px;
+    transition: all 0.18s ease; backdrop-filter: blur(10px);
+  }
+  .icon-btn:hover { background: rgba(255,255,255,0.12); transform: translateY(-2px); }
+  .icon-btn.off { opacity: 0.4; }
+
+  .winner-trophy { font-size: 60px; filter: drop-shadow(0 0 24px var(--gold)); animation: pop 0.6s ease; }
+  @keyframes pop { 0% { transform: scale(0.3); opacity: 0; } 70% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
+
+  .countdown {
+    position: absolute; inset: 0; display: grid; place-items: center; z-index: 4;
+    font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: clamp(70px, 14vw, 150px);
+    color: #fff; pointer-events: none;
+    text-shadow: 0 0 40px var(--cyan), 0 0 80px var(--violet);
+  }
+
+  .badge {
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    padding: 4px 12px; border-radius: 999px; border: 1px solid var(--glass-border);
+    background: var(--glass); opacity: 0.85;
+  }
+
+  @media (max-width: 560px) {
+    .side { min-width: 80px; }
+    .scoreboard { gap: 14px; padding: 8px 16px; }
+  }
+</style>
+</head>
+<body>
+  <div class="aurora"><span class="a"></span><span class="b"></span><span class="c"></span></div>
+
+  <div class="stage">
+    <div class="title-bar">
+      <h1>NEON&nbsp;PONG</h1>
+      <p>Premium Edition</p>
+    </div>
+
+    <div class="scoreboard">
+      <div class="side player">
+        <div class="label">You</div>
+        <div class="num" id="scoreP">0</div>
+      </div>
+      <div class="divider">
+        <span>VS</span>
+        <span class="best" id="bestOf">First to 7</span>
+      </div>
+      <div class="side cpu">
+        <div class="label" id="cpuLabel">CPU</div>
+        <div class="num" id="scoreC">0</div>
+      </div>
+    </div>
+
+    <div class="court-wrap">
+      <canvas id="game" width="900" height="560"></canvas>
+
+      <!-- Countdown -->
+      <div class="countdown" id="countdown" style="display:none"></div>
+
+      <!-- Start / Menu overlay -->
+      <div class="overlay" id="menu">
+        <h2>Ready to Play?</h2>
+        <p class="sub">Move your paddle with the <b>mouse</b> or <kbd>↑</kbd><kbd>↓</kbd> / <kbd>W</kbd><kbd>S</kbd>. Beat the AI to the target score. Each rally gets faster — keep your nerve.</p>
+
+        <div class="group">
+          <div class="group-label">Difficulty</div>
+          <div class="seg" id="difficultySeg">
+            <button data-diff="easy">Easy</button>
+            <button data-diff="normal" class="active">Normal</button>
+            <button data-diff="hard">Hard</button>
+            <button data-diff="insane">Insane</button>
+          </div>
+        </div>
+
+        <div class="group">
+          <div class="group-label">Match Length</div>
+          <div class="seg" id="targetSeg">
+            <button data-target="5">First to 5</button>
+            <button data-target="7" class="active">First to 7</button>
+            <button data-target="11">First to 11</button>
+          </div>
+        </div>
+
+        <button class="btn" id="startBtn">Start Match</button>
+        <div class="hint">
+          <span><kbd>Space</kbd> Pause</span>
+          <span><kbd>M</kbd> Mute</span>
+          <span><kbd>Esc</kbd> Menu</span>
+        </div>
+      </div>
+
+      <!-- Pause overlay -->
+      <div class="overlay hidden" id="pause">
+        <span class="badge">Paused</span>
+        <h2>Take a Breath</h2>
+        <div class="row">
+          <button class="btn" id="resumeBtn">Resume</button>
+          <button class="btn ghost" id="quitBtn">Main Menu</button>
+        </div>
+      </div>
+
+      <!-- Game over overlay -->
+      <div class="overlay hidden" id="gameover">
+        <div class="winner-trophy" id="trophy">🏆</div>
+        <h2 id="resultTitle">You Win!</h2>
+        <p class="sub" id="resultSub"></p>
+        <div class="row">
+          <button class="btn" id="rematchBtn">Rematch</button>
+          <button class="btn ghost" id="menuBtn">Change Settings</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="icon-btn" id="soundBtn" title="Mute / Unmute (M)">🔊</div>
+      <div class="icon-btn" id="pauseBtn" title="Pause (Space)">⏸</div>
+      <div class="icon-btn" id="fsBtn" title="Fullscreen">⛶</div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------- Canvas setup (HiDPI aware) ----------
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const BASE_W = 900, BASE_H = 560;
+  let DPR = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+
+  function sizeCanvas() {
+    // Fit within viewport while keeping 900x560 aspect ratio
+    const maxW = Math.min(window.innerWidth - 40, 1000);
+    const maxH = window.innerHeight - 320;
+    let w = maxW, h = w * (BASE_H / BASE_W);
+    if (h > maxH) { h = Math.max(260, maxH); w = h * (BASE_W / BASE_H); }
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    canvas.width = Math.round(BASE_W * DPR);
+    canvas.height = Math.round(BASE_H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  window.addEventListener('resize', sizeCanvas);
+  sizeCanvas();
+
+  // ---------- Audio (Web Audio API, no asset files) ----------
+  const Sound = (() => {
+    let actx = null, muted = false;
+    function ensure() {
+      if (!actx) {
+        try { actx = new (window.AudioContext || window.webkitAudioContext)(); }
+        catch (e) { actx = null; }
+      }
+      if (actx && actx.state === 'suspended') actx.resume();
+      return actx;
+    }
+    function tone(freq, dur, type = 'sine', vol = 0.15, slideTo = null) {
+      if (muted) return;
+      const a = ensure(); if (!a) return;
+      const o = a.createOscillator(), g = a.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, a.currentTime);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, a.currentTime + dur);
+      g.gain.setValueAtTime(0.0001, a.currentTime);
+      g.gain.exponentialRampToValueAtTime(vol, a.currentTime + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+      o.connect(g); g.connect(a.destination);
+      o.start(); o.stop(a.currentTime + dur + 0.02);
+    }
+    return {
+      paddle: () => tone(420, 0.08, 'square', 0.12, 620),
+      wall:   () => tone(240, 0.07, 'sine', 0.10, 200),
+      scoreP: () => { tone(523, 0.12, 'triangle', 0.16); setTimeout(()=>tone(784,0.16,'triangle',0.16),90); },
+      scoreC: () => { tone(330, 0.12, 'sawtooth', 0.12); setTimeout(()=>tone(196,0.18,'sawtooth',0.12),90); },
+      win:    () => { [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,0.2,'triangle',0.16),i*120)); },
+      lose:   () => { [392,330,262,196].forEach((f,i)=>setTimeout(()=>tone(f,0.22,'sawtooth',0.12),i*120)); },
+      count:  () => tone(660, 0.1, 'sine', 0.12),
+      go:     () => tone(880, 0.18, 'triangle', 0.16),
+      toggle(){ muted = !muted; return muted; },
+      isMuted(){ return muted; },
+      resume(){ ensure(); }
+    };
+  })();
+
+  // ---------- Difficulty presets ----------
+  const DIFF = {
+    easy:   { speed: 0.052, react: 0.55, err: 70, ballStart: 5.2, label: 'CPU · Easy' },
+    normal: { speed: 0.075, react: 0.72, err: 42, ballStart: 6.2, label: 'CPU · Normal' },
+    hard:   { speed: 0.105, react: 0.86, err: 22, ballStart: 7.0, label: 'CPU · Hard' },
+    insane: { speed: 0.150, react: 0.96, err: 8,  ballStart: 7.8, label: 'CPU · Insane' },
+  };
+
+  // ---------- Game state ----------
+  const G = {
+    state: 'menu',          // menu | countdown | playing | paused | over
+    difficulty: 'normal',
+    target: 7,
+    scoreP: 0, scoreC: 0,
+    shake: 0,
+    particles: [],
+    trail: [],
+    rallyHits: 0,
+    serveDir: 1,
+    flash: { p: 0, c: 0 },  // goal-line flash
+  };
+
+  const PADDLE_W = 14, PADDLE_H = 96, PADDLE_MARGIN = 26;
+  const player = { x: PADDLE_MARGIN, y: BASE_H/2 - PADDLE_H/2, h: PADDLE_H, vy: 0 };
+  const cpu = { x: BASE_W - PADDLE_MARGIN - PADDLE_W, y: BASE_H/2 - PADDLE_H/2, h: PADDLE_H, target: BASE_H/2 };
+  const ball = { x: BASE_W/2, y: BASE_H/2, r: 9, vx: 0, vy: 0, speed: 6 };
+
+  // ---------- Input ----------
+  const keys = {};
+  let mouseControl = false;
+  window.addEventListener('keydown', (e) => {
+    keys[e.key.toLowerCase()] = true;
+    if (e.key === ' ') { e.preventDefault(); togglePause(); }
+    if (e.key.toLowerCase() === 'm') toggleSound();
+    if (e.key === 'Escape') { if (G.state==='playing'||G.state==='paused') goMenu(); }
+  });
+  window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+  function pointerY(clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const scale = BASE_H / rect.height;
+    return (clientY - rect.top) * scale;
+  }
+  canvas.addEventListener('mousemove', (e) => {
+    if (G.state !== 'playing') return;
+    mouseControl = true;
+    player.y = clamp(pointerY(e.clientY) - player.h/2, 0, BASE_H - player.h);
+  });
+  canvas.addEventListener('touchmove', (e) => {
+    if (G.state !== 'playing') return;
+    e.preventDefault();
+    mouseControl = true;
+    player.y = clamp(pointerY(e.touches[0].clientY) - player.h/2, 0, BASE_H - player.h);
+  }, { passive: false });
+
+  // ---------- Helpers ----------
+  function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+  function rand(a, b) { return a + Math.random() * (b - a); }
+
+  function spawnParticles(x, y, color, count, power = 1) {
+    for (let i = 0; i < count; i++) {
+      const ang = rand(0, Math.PI * 2);
+      const sp = rand(1, 6) * power;
+      G.particles.push({
+        x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp,
+        life: 1, decay: rand(0.012, 0.03), color, size: rand(1.5, 4)
+      });
+    }
+  }
+
+  // ---------- Match flow ----------
+  function resetBall(dir) {
+    const d = DIFF[G.difficulty];
+    ball.x = BASE_W/2; ball.y = BASE_H/2;
+    ball.speed = d.ballStart;
+    const angle = rand(-0.35, 0.35);
+    ball.vx = Math.cos(angle) * ball.speed * dir;
+    ball.vy = Math.sin(angle) * ball.speed;
+    G.rallyHits = 0;
+    G.trail.length = 0;
+  }
+
+  function startMatch() {
+    Sound.resume();
+    G.scoreP = 0; G.scoreC = 0;
+    updateScores();
+    player.y = BASE_H/2 - player.h/2;
+    cpu.y = BASE_H/2 - cpu.h/2;
+    G.serveDir = Math.random() < 0.5 ? 1 : -1;
+    hide('menu'); hide('pause'); hide('gameover');
+    document.getElementById('cpuLabel').textContent = DIFF[G.difficulty].label.replace('CPU · ', '');
+    beginCountdown(() => { resetBall(G.serveDir); G.state = 'playing'; });
+  }
+
+  function beginCountdown(done) {
+    G.state = 'countdown';
+    const el = document.getElementById('countdown');
+    el.style.display = 'grid';
+    let n = 3;
+    el.textContent = n;
+    Sound.count();
+    const iv = setInterval(() => {
+      n--;
+      if (n > 0) { el.textContent = n; Sound.count(); }
+      else if (n === 0) { el.textContent = 'GO'; Sound.go(); }
+      else { clearInterval(iv); el.style.display = 'none'; done(); }
+    }, 700);
+  }
+
+  function scorePoint(who) {
+    if (who === 'p') { G.scoreP++; G.flash.p = 1; Sound.scoreP(); spawnParticles(BASE_W - 30, ball.y, '#ff2bd6', 40, 1.4); }
+    else { G.scoreC++; G.flash.c = 1; Sound.scoreC(); spawnParticles(30, ball.y, '#19f0ff', 40, 1.4); }
+    G.shake = 14;
+    updateScores();
+
+    if (G.scoreP >= G.target || G.scoreC >= G.target) { endMatch(); return; }
+    G.state = 'countdown';
+    setTimeout(() => beginCountdown(() => { resetBall(who === 'p' ? 1 : -1); G.state = 'playing'; }), 350);
+  }
+
+  function endMatch() {
+    G.state = 'over';
+    const won = G.scoreP > G.scoreC;
+    document.getElementById('trophy').textContent = won ? '🏆' : '💀';
+    document.getElementById('resultTitle').textContent = won ? 'Victory!' : 'Defeated';
+    document.getElementById('resultSub').textContent =
+      (won ? 'You outplayed the ' : 'The ') + DIFF[G.difficulty].label.replace('CPU · ','') +
+      (won ? ' AI.' : ' AI got the better of you.') + '  Final score ' + G.scoreP + ' – ' + G.scoreC + '.';
+    won ? Sound.win() : Sound.lose();
+    if (won) spawnParticles(BASE_W/2, BASE_H/2, '#ffd166', 120, 2.2);
+    show('gameover');
+  }
+
+  function togglePause() {
+    if (G.state === 'playing') { G.state = 'paused'; show('pause'); }
+    else if (G.state === 'paused') { hide('pause'); G.state = 'playing'; }
+  }
+  function goMenu() { G.state = 'menu'; hide('pause'); hide('gameover'); show('menu'); }
+
+  // ---------- Update ----------
+  function update() {
+    if (G.state !== 'playing') return;
+    const d = DIFF[G.difficulty];
+
+    // Player keyboard movement
+    const kSpeed = 8.5;
+    if (keys['arrowup'] || keys['w']) { player.y -= kSpeed; mouseControl = false; }
+    if (keys['arrowdown'] || keys['s']) { player.y += kSpeed; mouseControl = false; }
+    player.y = clamp(player.y, 0, BASE_H - player.h);
+
+    // CPU AI: predict ball y with reaction + error, ease toward it
+    let aim = BASE_H / 2;
+    if (ball.vx > 0) {
+      // crude prediction of where ball will cross cpu plane
+      let predY = ball.y, predVy = ball.vy, predX = ball.x;
+      const steps = Math.max(0, (cpu.x - ball.x) / Math.max(1, ball.vx));
+      predY = ball.y + ball.vy * steps;
+      // reflect off walls
+      const range = BASE_H;
+      predY = predY % (2 * range);
+      if (predY < 0) predY += 2 * range;
+      if (predY > range) predY = 2 * range - predY;
+      aim = predY * d.react + (BASE_H/2) * (1 - d.react) + rand(-d.err, d.err);
+    } else {
+      aim = BASE_H/2 + rand(-d.err, d.err) * 0.4;
+    }
+    cpu.target = clamp(aim - cpu.h/2, 0, BASE_H - cpu.h);
+    cpu.y += (cpu.target - cpu.y) * d.speed;
+    cpu.y = clamp(cpu.y, 0, BASE_H - cpu.h);
+
+    // Ball movement
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    // Trail
+    G.trail.push({ x: ball.x, y: ball.y });
+    if (G.trail.length > 16) G.trail.shift();
+
+    // Top/bottom walls
+    if (ball.y - ball.r <= 0) { ball.y = ball.r; ball.vy *= -1; Sound.wall(); spawnParticles(ball.x, 0, '#7a5cff', 8); }
+    if (ball.y + ball.r >= BASE_H) { ball.y = BASE_H - ball.r; ball.vy *= -1; Sound.wall(); spawnParticles(ball.x, BASE_H, '#7a5cff', 8); }
+
+    // Paddle collisions
+    // Player (left)
+    if (ball.vx < 0 &&
+        ball.x - ball.r <= player.x + PADDLE_W &&
+        ball.x - ball.r >= player.x - 6 &&
+        ball.y >= player.y && ball.y <= player.y + player.h) {
+      bounce(player, 1);
+    }
+    // CPU (right)
+    if (ball.vx > 0 &&
+        ball.x + ball.r >= cpu.x &&
+        ball.x + ball.r <= cpu.x + PADDLE_W + 6 &&
+        ball.y >= cpu.y && ball.y <= cpu.y + cpu.h) {
+      bounce(cpu, -1);
+    }
+
+    // Scoring
+    if (ball.x + ball.r < -10) scorePoint('c');
+    else if (ball.x - ball.r > BASE_W + 10) scorePoint('p');
+
+    // Particles + shake decay
+    for (let i = G.particles.length - 1; i >= 0; i--) {
+      const p = G.particles[i];
+      p.x += p.vx; p.y += p.vy; p.vy += 0.06; p.life -= p.decay;
+      if (p.life <= 0) G.particles.splice(i, 1);
+    }
+    if (G.shake > 0) G.shake *= 0.86;
+    G.flash.p *= 0.9; G.flash.c *= 0.9;
+  }
+
+  function bounce(paddle, dir) {
+    // Reflect with angle based on hit position
+    const rel = (ball.y - (paddle.y + paddle.h/2)) / (paddle.h/2); // -1..1
+    const maxAngle = Math.PI / 3.2; // ~56 deg
+    const angle = rel * maxAngle;
+    G.rallyHits++;
+    ball.speed = Math.min(ball.speed + 0.35, 16);
+    ball.vx = Math.cos(angle) * ball.speed * dir;
+    ball.vy = Math.sin(angle) * ball.speed;
+    // nudge out of paddle
+    ball.x += dir * 4;
+    Sound.paddle();
+    G.shake = 6;
+    spawnParticles(ball.x, ball.y, dir > 0 ? '#19f0ff' : '#ff2bd6', 14, 1.1);
+  }
+
+  // ---------- Render ----------
+  function draw() {
+    ctx.clearRect(0, 0, BASE_W, BASE_H);
+
+    ctx.save();
+    if (G.shake > 0.4) {
+      ctx.translate(rand(-G.shake, G.shake), rand(-G.shake, G.shake));
+    }
+
+    // Court background subtle gradient + vignette
+    const grad = ctx.createLinearGradient(0, 0, 0, BASE_H);
+    grad.addColorStop(0, 'rgba(20,26,68,0.35)');
+    grad.addColorStop(1, 'rgba(4,5,14,0.35)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, BASE_W, BASE_H);
+
+    // Center dashed line
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 4;
+    ctx.setLineDash([14, 18]);
+    ctx.beginPath();
+    ctx.moveTo(BASE_W/2, 0); ctx.lineTo(BASE_W/2, BASE_H);
+    ctx.stroke();
+    ctx.restore();
+
+    // Center circle
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(BASE_W/2, BASE_H/2, 64, 0, Math.PI*2);
+    ctx.stroke();
+
+    // Goal-line flashes
+    if (G.flash.p > 0.02) { ctx.fillStyle = `rgba(255,43,214,${G.flash.p*0.25})`; ctx.fillRect(BASE_W-6, 0, 6, BASE_H); }
+    if (G.flash.c > 0.02) { ctx.fillStyle = `rgba(25,240,255,${G.flash.c*0.25})`; ctx.fillRect(0, 0, 6, BASE_H); }
+
+    // Ball trail
+    for (let i = 0; i < G.trail.length; i++) {
+      const t = G.trail[i];
+      const a = (i / G.trail.length);
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(255,255,255,${a * 0.35})`;
+      ctx.arc(t.x, t.y, ball.r * a, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // Paddles (glow)
+    drawPaddle(player.x, player.y, '#19f0ff');
+    drawPaddle(cpu.x, cpu.y, '#ff2bd6');
+
+    // Ball (glow)
+    if (G.state === 'playing' || G.state === 'paused' || G.state === 'countdown' || G.state==='over') {
+      ctx.save();
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 28;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Particles
+    for (const p of G.particles) {
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Rally counter
+    if ((G.state === 'playing') && G.rallyHits >= 3) {
+      ctx.save();
+      ctx.font = '700 16px Rajdhani, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.textAlign = 'center';
+      ctx.fillText('RALLY × ' + G.rallyHits, BASE_W/2, 34);
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  function drawPaddle(x, y, color) {
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 22;
+    ctx.fillStyle = color;
+    roundRect(x, y, PADDLE_W, PADDLE_H, 7);
+    ctx.fill();
+    // inner highlight
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    roundRect(x + 3, y + 4, 4, PADDLE_H - 8, 3);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  // ---------- Loop ----------
+  function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+  loop();
+
+  // ---------- UI wiring ----------
+  function updateScores() {
+    document.getElementById('scoreP').textContent = G.scoreP;
+    document.getElementById('scoreC').textContent = G.scoreC;
+  }
+  function show(id) { document.getElementById(id).classList.remove('hidden'); }
+  function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+  // Difficulty selection
+  document.getElementById('difficultySeg').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    [...e.currentTarget.children].forEach(c => c.classList.remove('active'));
+    b.classList.add('active');
+    G.difficulty = b.dataset.diff;
+  });
+  // Target selection
+  document.getElementById('targetSeg').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    [...e.currentTarget.children].forEach(c => c.classList.remove('active'));
+    b.classList.add('active');
+    G.target = parseInt(b.dataset.target, 10);
+    document.getElementById('bestOf').textContent = 'First to ' + G.target;
+  });
+
+  document.getElementById('startBtn').addEventListener('click', startMatch);
+  document.getElementById('resumeBtn').addEventListener('click', togglePause);
+  document.getElementById('quitBtn').addEventListener('click', goMenu);
+  document.getElementById('rematchBtn').addEventListener('click', startMatch);
+  document.getElementById('menuBtn').addEventListener('click', goMenu);
+
+  document.getElementById('pauseBtn').addEventListener('click', () => {
+    if (G.state === 'playing' || G.state === 'paused') togglePause();
+  });
+
+  function toggleSound() {
+    const muted = Sound.toggle();
+    const btn = document.getElementById('soundBtn');
+    btn.textContent = muted ? '🔇' : '🔊';
+    btn.classList.toggle('off', muted);
+  }
+  document.getElementById('soundBtn').addEventListener('click', toggleSound);
+
+  document.getElementById('fsBtn').addEventListener('click', () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  });
+
+})();
+</script>
+</body>
+</html>
