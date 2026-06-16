@@ -456,11 +456,13 @@
   // ballStart : serve speed | ballAccel : speed gained per paddle hit | ballMax : speed cap
   // cpuMaxSpeed : px/frame the CPU paddle can actually move (the real skill limiter)
   // react : prediction accuracy 0..1 | err : aim error in px | zone : how early it reacts 0..1
+  // Difficulty bumped up one notch: Easy now plays like the old Normal,
+  // Normal like the old Hard, Hard like the old Insane, and Insane is harder still.
   const DIFF = {
-    easy:   { ballStart: 4.4, ballAccel: 0.18, ballMax: 8.5,  cpuMaxSpeed: 4.2,  react: 0.40, err: 105, zone: 0.40, label: 'CPU · Easy' },
-    normal: { ballStart: 5.8, ballAccel: 0.32, ballMax: 11.5, cpuMaxSpeed: 7.0,  react: 0.68, err: 60,  zone: 0.62, label: 'CPU · Normal' },
-    hard:   { ballStart: 7.2, ballAccel: 0.46, ballMax: 15.0, cpuMaxSpeed: 10.5, react: 0.88, err: 26,  zone: 0.84, label: 'CPU · Hard' },
-    insane: { ballStart: 9.0, ballAccel: 0.60, ballMax: 19.0, cpuMaxSpeed: 15.0, react: 0.99, err: 7,   zone: 1.00, label: 'CPU · Insane' },
+    easy:   { ballStart: 5.8,  ballAccel: 0.32, ballMax: 11.5, cpuMaxSpeed: 7.0,  react: 0.68, err: 60, zone: 0.62, label: 'CPU · Easy' },
+    normal: { ballStart: 7.2,  ballAccel: 0.46, ballMax: 15.0, cpuMaxSpeed: 10.5, react: 0.88, err: 26, zone: 0.84, label: 'CPU · Normal' },
+    hard:   { ballStart: 9.0,  ballAccel: 0.60, ballMax: 19.0, cpuMaxSpeed: 15.0, react: 0.99, err: 7,  zone: 1.00, label: 'CPU · Hard' },
+    insane: { ballStart: 11.0, ballAccel: 0.78, ballMax: 23.0, cpuMaxSpeed: 19.0, react: 1.00, err: 3,  zone: 1.00, label: 'CPU · Insane' },
   };
 
   // ---------- Game state ----------
